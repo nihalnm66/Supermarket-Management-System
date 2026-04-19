@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FreshMart Supermarket Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --p: #2ecc71; --d: #2c3e50; --l: #ecf0f1; --err: #e74c3c; --w: #f39c12; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { display: flex; height: 100vh; background: #f8f9fa; }
+        .sidebar { width: 250px; background: var(--d); color: white; display: flex; flex-direction: column; }
+        .nav-link { padding: 20px; color: white; background: none; border: none; text-align: left; cursor: pointer; border-left: 4px solid transparent; }
+        .nav-link.active { background: #34495e; border-left-color: var(--p); font-weight: bold; }
+        .main { flex: 1; padding: 30px; overflow-y: auto; }
+        .page { display: none; } .page.active { display: block; }
+        .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative;}
+        input, select { width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn-p { background: var(--p); color: white; }
+        .btn-danger { background: var(--err); color: white; width: auto; padding: 5px 10px; margin: 0; font-size: 12px; }
+        .stock-badge { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: bold; padding: 4px 8px; border-radius: 4px; display: none; }
+        .receipt-area { display: none; max-width: 600px; margin: 0 auto; }
+        .receipt-box { border: 1px dashed #333; padding: 20px; font-family: monospace; background: #fff; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div style="padding:25px; font-size:22px; font-weight:bold; border-bottom:1px solid #444;">FreshMart POS</div>
+        <button class="nav-link active" onclick="nav('pos', this)"><i class="fas fa-cash-register"></i> Billing</button>
+        <button class="nav-link" onclick="nav('inv', this)"><i class="fas fa-boxes"></i> Inventory</button>
+        <button class="nav-link" onclick="nav('hist', this)"><i class="fas fa-history"></i> Bill History</button>
+    </div>
+
+    <div class="main">
+        <div id="pos" class="page active">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2>🛒 Cashier Billing</h2>
+                <button class="btn-p" style="width:auto; padding:8px 15px; background:var(--d)" onclick="resetPOS()">
+                    <i class="fas fa-sync"></i> New Transaction
+                </button>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:25px;">
+                <div class="card">
+                    <h3>1. Add Item</h3>
+                    <input list="plist" id="itN" placeholder="Search product..." oninput="autoPrice()">
+                    <datalist id="plist"></datalist>
+                    
+                    <div id="stockBadge" class="stock-badge"></div>
+
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="itP" placeholder="Price" readonly style="background:#f5f5f5">
+                        <input type="number" id="itQ" value="1" min="1">
+                    </div>
+                    <button class="btn btn-p" onclick="addCart()">Add to Cart</button>
+                </div>
+
+                <div class="card">
+                    <h3>2. Invoice</h3>
+                    <table id="cartT">
+                        <thead><tr><th>Item</th><th>Qty</th><th>Total</th><th>Action</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div style="text-align:right; font-size:24px; margin-top:15px; font-weight:bold;">Total: ₹<span id="tot">0</span></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                        <input type="text" id="cN" placeholder="Customer Name">
+                        <input type="text" id="cP" placeholder="Phone Number">
+                    </div>
+                    <button class="btn btn-p" onclick="checkout()">Complete Transaction</button>
+                </div>
+            </div>
+
+            <div id="pos-receipt-area" class="receipt-area">
+                <div class="card">
+                    <h3>3. Generated Receipt</h3>
+                    <div id="pos-receipt-content" class="receipt-box"></div>
+                    <button class="btn btn-p" onclick="window.print()">Print This Receipt</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="inv" class="page">
+            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:20px;">
+                <div class="card">
+                    <h3>Add New Product</h3>
+                    <input type="text" id="newPID" placeholder="Product ID">
+                    <input type="text" id="newName" placeholder="Product Name">
+                    <input type="text" id="newCat" placeholder="Category">
+                    <input type="number" id="newPrice" placeholder="Price">
+                    <input type="number" id="newStock" placeholder="Initial Stock">
+                    <button class="btn btn-p" onclick="addNewProduct()">Add to Inventory</button>
+                </div>
+                <div class="card">
+                    <h3>Stock Management</h3>
+                    <table id="invT"><thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead><tbody></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <div id="hist" class="page">
+            <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:20px;">
+                <div class="card">
+                    <h3>📜 Bill History</h3>
+                    <input type="text" id="sh" placeholder="Filter by phone..." oninput="filterHist()">
+                    <table id="histT"><thead><tr><th>Date</th><th>Name</th><th>Total</th><th>Action</th></tr></thead><tbody></tbody></table>
+                </div>
+                <div class="card">
+                    <h3>Receipt View</h3>
+                    <div id="billDetail" class="receipt-box">Select a bill to view.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let prods = []; let cart = []; let bills = [];
+
+        function nav(id, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+            document.getElementById(id).classList.add('active'); btn.classList.add('active');
+            if(id === 'inv') loadInv(); if(id === 'hist') loadHist();
+        }
+
+        async function loadInv() {
+            const r = await fetch('/api/products'); prods = await r.json();
+            document.getElementById('invT').querySelector('tbody').innerHTML = prods.map(p => `
+                <tr><td>${p.pid}</td><td>${p.name}</td><td>₹${p.price}</td>
+                <td style="color:${p.stock < 10 ? 'red' : 'green'}"><b>${p.stock}</b></td>
+                <td><button onclick="del('${p._id}')" style="color:red; cursor:pointer; background:none; border:none;">Delete</button></td></tr>
+            `).join('');
+            
+            // Populate datalist with Stock info visible
+            document.getElementById('plist').innerHTML = prods.map(p => 
+                `<option value="${p.name}">Available: ${p.stock}</option>`
+            ).join('');
+        }
+
+        function autoPrice() {
+            const v = document.getElementById('itN').value.toLowerCase();
+            const p = prods.find(x => x.name.toLowerCase() === v);
+            const badge = document.getElementById('stockBadge');
+            
+            if (p) {
+                document.getElementById('itP').value = p.price;
+                badge.style.display = 'inline-block';
+                badge.innerText = `Stock Available: ${p.stock}`;
+                badge.style.color = p.stock < 10 ? 'white' : 'black';
+                badge.style.backgroundColor = p.stock < 10 ? 'var(--err)' : 'var(--p)';
+            } else {
+                document.getElementById('itP').value = '';
+                badge.style.display = 'none';
+            }
+        }
+
+        function addCart() {
+            const nInput = document.getElementById('itN');
+            const pInput = document.getElementById('itP');
+            const qInput = document.getElementById('itQ');
+            const n = nInput.value; const p = parseInt(pInput.value); const q = parseInt(qInput.value);
+
+            if(!n || !p) return alert("Select item");
+            
+            cart.push({ name: n, price: p, quantity: q });
+            renderCartTable();
+            
+            nInput.value = ''; pInput.value = ''; qInput.value = '1';
+            document.getElementById('stockBadge').style.display = 'none';
+            nInput.focus();
+        }
+
+        function renderCartTable() {
+            const tbody = document.querySelector('#cartT tbody');
+            tbody.innerHTML = cart.map((c, index) => `
+                <tr><td>${c.name}</td><td>${c.quantity}</td><td>₹${c.price * c.quantity}</td>
+                <td><button class="btn btn-danger" onclick="removeCartItem(${index})"><i class="fas fa-trash"></i></button></td></tr>
+            `).join('');
+            document.getElementById('tot').innerText = cart.reduce((a, b) => a + (b.price * b.quantity), 0);
+        }
+
+        function removeCartItem(index) {
+            cart.splice(index, 1);
+            renderCartTable();
+        }
+
+        async function checkout() {
+            if(cart.length === 0) return alert("Cart is empty!");
+            const cN = document.getElementById('cN').value;
+            const cP = document.getElementById('cP').value;
+
+            const res = await fetch('/api/bills', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ customerName: cN, customerPhone: cP, items: cart, totalAmount: parseInt(document.getElementById('tot').innerText) })
+            });
+            
+            const data = await res.json();
+            if(res.ok) { 
+                generateReceipt(data.bill, 'pos-receipt-content');
+                document.getElementById('pos-receipt-area').style.display = 'block';
+                document.getElementById('pos-receipt-area').scrollIntoView({ behavior: 'smooth' });
+                cart = []; renderCartTable();
+                document.getElementById('cN').value = ''; document.getElementById('cP').value = '';
+                loadInv();
+                alert("Bill Generated!");
+            } else { alert("❌ Error: " + data.error); }
+        }
+
+        function generateReceipt(b, targetId) {
+            let itemsHtml = b.items.map(i => `<div style="display:flex; justify-content:space-between"><span>${i.name} x${i.quantity}</span><span>₹${i.price * i.quantity}</span></div>`).join('');
+            document.getElementById(targetId).innerHTML = `
+                <center><h2 style="margin:0">FRESHMART RETAIL</h2><small>SUPERMARKET BILLING SYSTEM</small></center><hr style="margin:10px 0; border:0; border-top:1px dashed #333">
+                <b>Customer:</b> ${b.customerName || 'Walk-in'}<br><b>Phone:</b> ${b.customerPhone || 'N/A'}<br>
+                <b>Date:</b> ${new Date(b.date).toLocaleString()}<hr style="margin:10px 0; border:0; border-top:1px dashed #333">
+                ${itemsHtml}<hr style="margin:10px 0; border:0; border-top:1px dashed #333">
+                <div style="display:flex; justify-content:space-between; font-size:1.2em;"><b>GRAND TOTAL:</b><b>₹${b.totalAmount}</b></div><hr style="margin:10px 0; border:0; border-top:1px dashed #333">
+                <center>*** Thank You for Shopping! ***</center>
+            `;
+        }
+
+        function resetPOS() { if(confirm("Start new transaction?")) location.reload(); }
+
+        async function addNewProduct() {
+            const body = {
+                pid: document.getElementById('newPID').value,
+                name: document.getElementById('newName').value,
+                category: document.getElementById('newCat').value,
+                price: parseInt(document.getElementById('newPrice').value),
+                stock: parseInt(document.getElementById('newStock').value)
+            };
+            await fetch('/api/products', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+            loadInv(); alert("Product Added!");
+            document.getElementById('newPID').value=''; document.getElementById('newName').value='';
+            document.getElementById('newPrice').value=''; document.getElementById('newStock').value='';
+        }
+
+        async function loadHist() {
+            const r = await fetch('/api/bills'); bills = await r.json();
+            drawHist(bills);
+        }
+
+        function drawHist(data) {
+            document.getElementById('histT').querySelector('tbody').innerHTML = data.map((b, index) => `
+                <tr><td>${new Date(b.date).toLocaleDateString()}</td><td>${b.customerName}</td><td>₹${b.totalAmount}</td>
+                <td><button onclick="viewHistBill(${index})" style="color:blue; cursor:pointer; background:none; border:none;">View Bill</button></td></tr>
+            `).join('');
+        }
+
+        function viewHistBill(index) { generateReceipt(bills[index], 'billDetail'); }
+
+        async function filterHist() {
+            const ph = document.getElementById('sh').value;
+            if(!ph) return loadHist();
+            const r = await fetch(`/api/bills/search/${ph}`); bills = await r.json();
+            drawHist(bills);
+        }
+
+        async function del(id) { if(confirm("Delete item?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadInv(); } }
+
+        loadInv();
+    </script>
+</body>
+</html>
