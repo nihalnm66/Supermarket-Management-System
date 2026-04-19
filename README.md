@@ -42,5 +42,5 @@ The system utilizes 7 core MongoDB operations to handle the dynamic nature of re
    ```
 
 ## 👥 Authors
-* **NIHAL N M** - USN: NNM23IS108
-* **KRITHI U KOTIAN** - USN: NNM23IS088
+* **NIHAL N M**
+* **KRITHI U KOTIAN** 
